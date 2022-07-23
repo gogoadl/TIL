@@ -1,6 +1,6 @@
-코틀린의 등장과 함께 소개된 널 안정성은 코틀린의 주요 기능 중 하나이다. 자바에서 자주 볼 수 있었던 널 포인터 예외는 코틀린에서 null-safety 메커니즘으로 인해 거의 찾아보기 힘들다. 하지만 null-safety 메커니즘이 없는 자바, C 등의 프로그래밍 언어와 코틀린을 연결해서 사용할 때는 이러한 예외가 발생할 수 있다. 만약 자바에서 String 타입을 리턴하는 메서드가 있다고 가정해보자. 코틀린에서 이를 사용하려면 어떻게 해야할까?
-
 @Nullable 어노테이션이 붙어있다면, 이를 nullable로 추정하고 String? 으로 변경하면 된다. @NotNull 어노테이션이 붙어있다면, String으로 변경하면 된다. 그런데 만약 어노테이션이 붙어 있지 않다면 어떻게 해야 할까?
+
+코틀린의 등장과 함께 소개된 널 안정성은 코틀린의 주요 기능 중 하나이다. 자바에서 자주 볼 수 있었던 널 포인터 예외는 코틀린에서 null-safety 메커니즘으로 인해 거의 찾아보기 힘들다. 하지만 null-safety 메커니즘이 없는 자바, C 등의 프로그래밍 언어와 코틀린을 연결해서 사용할 때는 이러한 예외가 발생할 수 있다. 만약 자바에서 String 타입을 리턴하는 메서드가 있다고 가정해보자. 코틀린에서 이를 사용하려면 어떻게 해야할까?
 
 ```kotlin
 // 자바
@@ -10,7 +10,7 @@ public class JavaTest {
 }
 ```
 
-자바에서는 모든 것이 nullable 일 수 있으므로 최대한 안전하게 접근한다면, 이를 nullable로 가정하고 다루어야 한다. 하지만 어떤 메서드는 nyll을 리턴하지 않을 것이 확실할 수 있다. 이러한 경우에는 마지막에 not-null 단정을 나타내는 !!를 붙인다. 
+자바에서는 모든 것이 nullable 일 수 있으므로 최대한 안전하게 접근한다면, 이를 nullable로 가정하고 다루어야 한다. 하지만 어떤 메서드는 null을 리턴하지 않을 것이 확실할 수 있다. 이러한 경우에는 마지막에 not-null 단정을 나타내는 !!를 붙인다. 
 
 nullable과 관련하여 자주 문제가 되는 부분은 바로 자바의 제네릭 타입이다. 자바 API에서 List<User>를 리턴하고, 어노테이션이 따로 붙어 있지 않은 경우를 생각해보자. 디폴트로 모든 타입을 nullable로 다룬다면, 우리는 이를 사용할 때 이러한 리스트와 리스트 내부의 User 객체들이 널이 아니라는 것을 알야아 한다. 따라서 리스트 자체만 널인지 확인해서는 안되고, 그 내부에 있는 것들도 널인지 확인해야 한다.
 
@@ -66,3 +66,91 @@ val users: List<List<User>> = UserRepo().groupedUsers
 문제는 null이 아니라고 생각되는 것이 null일 가능성이 있으므로, 여전히 위험하다. 그래서 플랫폼 타입을 사용할 때는 항상 주의를 기울여야 한다. 설계자가 명시적으로 어노테이션을 표시하거나, 주석으로 달아두지 않으면, 언제든지 동작이 변경될 가능성이 있다. 따라서 함수가 지금 당장 null을 리턴하지 않아도, 미래에는 변경될 수도 있다는 것을 염두해 둬야한다.
 
 자바를 코틀린과 함께 사용할 때, 자바 코드를 직접 조작할 수 있다면, 가능한 @Nullable 과 @NotNull 어노테이션을 붙여서 사용하길 바란다.
+
+```kotlin
+// 자바
+import org.jetbrains.annotation.NotNull;
+
+public class UserRepo() {
+	public @NotNull User getUser() {
+	}
+}
+```
+
+이는 코틀린 개발자를 지원하고 싶은 경우, 가장 중요한 단계 중 하나라고 할 수 있다. 안드로이드 개발에서 코틀린을 메인 언어로 변경했을 때, 가장 중요한 변경 사항으로 이러한 어노테이션들이 언급되고 있다. 이러한 어노테이션들이 붙어 있어서, 안드로이드 API가 코틀린과 친화적이라고 불리는 것이다.
+
+코틀린 코드에서도 이와 관련된 코드를 작성할 수 있다. 다만 개인적으로 이와 같은 플랫폼타입은 안전하지 않으므로, 최대한 빨리 제거하는 것이 좋다고 생각한다. 왜 그런지 살펴볼 수 있게, 간단한 예로 다음 코드에서 statedType과 platformType의 동작을 살펴보자.
+
+```kotlin
+public class JavaClass {
+	public String getValue() {
+		return null;
+	}
+}
+
+// 코틀린 
+fun statedType() {
+	val state: String = JavaClass().value
+	println(value.length)
+}
+
+fun platformType() {
+	val value = JavaClass().value
+	println(value.length)
+}
+```
+
+두 가지 모두 NPE가 발생한다. 일반적으로 개발자는 getValue가 null을 리턴할 거라고 가정하지 않으므로, 자신이 무언가를 실수했다고 생각할 것이다. 그런데 이 두 코드는 오류의 발생위치에 차이가 있다. 
+
+statedType 에서는 자바에서 값을 가져오는 위치에서 NPE가 발생한다. 이 위치에서 오류가 발생하면, null이 아니라고 예상을 했지만 null이 나온다는 것을 쉽게 알 수 있다. 따라서 코드를 쉽게 수정할 수 있다.
+
+platformType에서는 값을 활용할 때 NPE가 발생한다. 실제로는 예로 보여준 표현식보다 복잡한 표현식을 사용할 때 이런 오류가 발생한다. 플랫폼 타입으로 지정된 변수는 nullable일 수도 있고, 아닐 수도 있다. 이러한 변수를 한두번 안전하게 사용했더라도, 이후에 다른 사람이 사용할 때는 NPE를 발생시킬 가능성이 분명 존재한다. 이러한 문제는 타입 검사기가 검출 해 줄 수 없다. 또한 이처럼 객체를 사용한다고 해서 NPE가 발생될 것이라고 생각하지 않으므로, 오류를 찾는데 굉장히 오랜 시간이 걸리게 된다.
+
+```kotlin
+// 자바
+public class JavaClass() {
+	public String getValue() {
+		return null;
+	}
+}
+
+// 코틀린
+fun statedType() {
+	val value: String = JavaClass().value // NPE
+	println(value.length)
+}
+
+fun platformType() {
+	val value = JavaClass().value
+println(value.length) // NPE
+```
+
+이처럼 플랫폼 타입은 더 많은 위험 가능성을 갖고 있습니다. 추가적인 예로 인터페이스에서 다음과 같이 플랫폼 타입을 사용했다고 해 보자.
+
+```kotlin
+interface UserRepo() {
+	fun getUserName() = JavaClass().value
+}
+```
+
+이러한 경우 메서드의 inferred 타입(추론된 타입)이 플랫폼 타입이다. 이는 누구나 nullable 여부를 지정할 수 있다는 것이다. 예를 들어 어떤 사람이 이를 활용하여 nullable을 리턴하게 했는데, 사용하는 사람이 nullable이 아닐거라고 받아들였다면, 문제가 된다.
+
+```kotlin
+class RepoImpl: UserRepo {
+	override fun getUserName(): String? { 
+		return null
+	}
+}
+
+fun main() {
+	val repo: UserRepo = RepoImpl()
+	val text: String = repo.getUserName()
+	print("User name length is ${text.length}")
+}
+```
+
+이처럼 플랫폼 타입이 전파되는 일은 굉장히 위험하다. 항상 위험을 내포하고 있으므로, 인전한 코드를 원한다면 이런 부분을 제거하는 것이 좋다.
+
+## 정리
+
+다른 프로그래밍 언어에서 와서 nullable 여부를 알 수 없는 타입을 플랫폼 타입이라고 부른다. 이러한 플랫폼 타입을 사용하는 코드는 해당 부분만 위험할 뿐만 아니라, 이를 활용하는 곳까지 영향을 줄 수 있는 위험한 코드이다. 따라서 이런 코드를 사용하고 있다면 빨리 해당 코드를 제거하는 것이 좋다. 또한 연결되어 있는 자바 생성자, 메서드, 필드에 nullable 여부를 지정하는 어노테이션을 활용하는 것도 좋다.
